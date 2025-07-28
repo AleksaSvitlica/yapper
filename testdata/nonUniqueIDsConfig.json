@@ -1,0 +1,58 @@
+{
+  "people": [
+    {
+      "id": "Mario",
+      "denyList": ["Wario", "Bowser"],
+      "squad": "bros"
+    },
+    {
+      "id": "Luigi",
+      "denyList": ["Waluigi", "Bowser"],
+      "squad": "bros"
+    },
+    {
+      "id": "Wario",
+      "denyList": ["Mario"]
+    },
+    {
+      "id": "Waluigi",
+      "denyList": ["Luigi"]
+    },
+    {
+      "id": "Toad"
+    },
+    {
+      "id": "Yoshi"
+    },
+    {
+      "id": "Peach",
+      "denyList": ["Bowser"]
+    },
+    {
+      "id": "Bowser",
+      "squad": "koopas"
+    },
+    {
+      "id": "Bowser Jr",
+      "squad": "koopas"
+    },
+    {
+      "id": "Shy Guy",
+      "denyList": ["Mario", "Luigi", "Peach"],
+      "cadence": "two-weeks"
+    },
+    {
+      "id": "Monty Mole",
+      "cadence": "two-weeks"
+    },
+    {
+      "id": "Koopa Troopa",
+      "squad": "koopas"
+    },
+    {
+      "id": "Mario",
+      "denyList": ["Wario", "Bowser"],
+      "squad": "bros"
+    }
+  ]
+}
