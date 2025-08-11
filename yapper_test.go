@@ -1,10 +1,12 @@
 package yapper
 
 import (
+	"bytes"
 	"os"
 	"path/filepath"
 	"reflect"
 	"slices"
+	"strings"
 	"testing"
 	"time"
 
@@ -90,7 +92,9 @@ func TestPairPeopleDoesNotCreateInvalidPairs(t *testing.T) {
 	hist := history.History{}
 	date := time.Date(2025, time.August, 1, 0, 0, 0, 0, time.UTC)
 
-	for _, pair := range pairPeople(config, validPairs, hist, date) {
+	pairings := pairPeople(config, validPairs, hist, date)
+
+	for id1, id2 := range pairings.All() {
 		checkPairing := func(t *testing.T, person1 ID, person2 ID, validPairs map[ID][]ID) {
 			t.Helper()
 			validFor1, exists := validPairs[person1]
@@ -102,8 +106,8 @@ func TestPairPeopleDoesNotCreateInvalidPairs(t *testing.T) {
 				t.Fatalf("%s cannot be paired with %s", person1, person2)
 			}
 		}
-		checkPairing(t, pair[0], pair[1], validPairs)
-		checkPairing(t, pair[1], pair[0], validPairs)
+		checkPairing(t, id1, id2, validPairs)
+		checkPairing(t, id2, id1, validPairs)
 	}
 }
 
@@ -120,13 +124,13 @@ func TestAverageTimeSinceMeetingIncreasesOrIsGreaterThanMinimum(t *testing.T) {
 	lastAvg := -0.1
 	for range weeksOfPairings {
 		pairings := pairPeople(config, validPairs, hist, date)
-		for _, pairing := range pairings {
+		for id1, id2 := range pairings.All() {
 			hist.AddMeeting(
-				history.ID(pairing[0]),
-				history.ID(pairing[1]),
+				history.ID(id1),
+				history.ID(id2),
 				date,
 			)
-			t.Logf("Pair: %v", pairing)
+			t.Logf("Pair: %s, %s", id1, id2)
 		}
 
 		avgDays := calculateAverageDaysSinceMeeting(t, date, allIDs, hist)
@@ -160,13 +164,13 @@ func TestPeopleHaveMetAllEligiblePairs(t *testing.T) {
 		t.Logf("Week %d", i)
 		pairings := pairPeople(config, validPairs, hist, date)
 
-		for _, pairing := range pairings {
+		for id1, id2 := range pairings.All() {
 			hist.AddMeeting(
-				history.ID(pairing[0]),
-				history.ID(pairing[1]),
+				history.ID(id1),
+				history.ID(id2),
 				date,
 			)
-			t.Logf("Pair: %v", pairing)
+			t.Logf("Pair: %s, %s", id1, id2)
 		}
 
 		date = date.AddDate(0, 0, 7)
@@ -201,18 +205,79 @@ func TestPeopleOnTwoWeekCadenceOnlyGetPairedEveryTwoWeeks(t *testing.T) {
 		t.Logf("Week %d", i)
 		pairings := pairPeople(config, validPairs, hist, date)
 
-		for _, pairing := range pairings {
-			checkEligibleToMeetThisWeek(t, config, pairing[0], date)
-			checkEligibleToMeetThisWeek(t, config, pairing[1], date)
+		for id1, id2 := range pairings.All() {
+			checkEligibleToMeetThisWeek(t, config, id1, date)
+			checkEligibleToMeetThisWeek(t, config, id2, date)
 
 			hist.AddMeeting(
-				history.ID(pairing[0]),
-				history.ID(pairing[1]),
+				history.ID(id1),
+				history.ID(id2),
 				date,
 			)
 		}
 
 		date = date.AddDate(0, 0, 7)
+	}
+}
+
+func TestPairingsNewFromFileReturnsExpectedPairings(t *testing.T) {
+	path := filepath.Join("testdata", "expectedPairings.json")
+	expected := Pairings{}
+	expected.Add("id1", "id2")
+	expected.Add("id2", "id3")
+
+	pairings, err := NewPairingsFromFile(path)
+	if err != nil {
+		t.Fatalf("Unexpected error from NewPairingsFromFile: %v", err)
+	}
+
+	if eq := reflect.DeepEqual(pairings, expected); !eq {
+		t.Errorf("Expected:\n\t%v\n got:\n\t%v", expected, pairings)
+	}
+}
+
+func TestPairingsExportWritesExpectedData(t *testing.T) {
+	expectedDataFile := filepath.Join("testdata", "expectedPairings.json")
+	pairings := Pairings{}
+	pairings.Add("id1", "id2")
+	pairings.Add("id2", "id3")
+
+	var writeBuffer bytes.Buffer
+	if err := pairings.Export(&writeBuffer); err != nil {
+		t.Errorf("unexpected error from Export: %v", err)
+	}
+
+	actual := writeBuffer.String()
+	expected, err := readExpectedData(t, expectedDataFile)
+	if err != nil {
+		t.Fatalf("error reading expected data from %s: %v", expectedDataFile, err)
+	}
+	if actual != expected {
+		t.Errorf("\nexpected:\n%q\ngot:\n%q\n", expected, actual)
+	}
+}
+
+func TestPairingsAllIteratesOverAllEntries(t *testing.T) {
+	expectedPairings := [][2]ID{
+		{"id1", "id2"},
+		{"id2", "id3"},
+	}
+	pairings := Pairings{}
+
+	for _, pair := range expectedPairings {
+		pairings.Add(pair[0], pair[1])
+	}
+
+	count := 0
+	for id1, id2 := range pairings.All() {
+		expectedPair := expectedPairings[count]
+		pair := [2]ID{id1, id2}
+
+		if eq := reflect.DeepEqual(pair, expectedPair); !eq {
+			t.Errorf("Expected:\n%v\ngot:\n%v\n", expectedPair, pair)
+		}
+
+		count++
 	}
 }
 
@@ -327,6 +392,16 @@ func checkEligibleToMeetThisWeek(t *testing.T, config Config, id ID, date time.T
 	if person.Cadence == CadenceTwoWeeks && !twoWeekValid {
 		t.Errorf("%s cannot meeting this week due to cadence: %s", id, person.Cadence)
 	}
+}
+
+func readExpectedData(t *testing.T, path string) (string, error) {
+	t.Helper()
+	fileBytes, err := os.ReadFile(path)
+	if err != nil {
+		return "", err
+	}
+
+	return strings.TrimSpace(string(fileBytes)), nil
 }
 
 func getValidPairsForConfig() map[ID][]ID {

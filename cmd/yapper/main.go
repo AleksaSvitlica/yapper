@@ -42,7 +42,8 @@ func execute(args []string) int {
 		return exitCodeError
 	}
 
-	if err := yapper.GeneratePairings(config, &hist, *weeksOfPairings); err != nil {
+	_, err = yapper.GeneratePairings(config, &hist, *weeksOfPairings)
+	if err != nil {
 		fmt.Fprintf(os.Stderr, "Error generating pairings: %v\n", err)
 		return exitCodeError
 	}

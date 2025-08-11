@@ -3,6 +3,8 @@ package yapper
 import (
 	"encoding/json"
 	"fmt"
+	"io"
+	"iter"
 	"log"
 	"os"
 	"slices"
@@ -78,30 +80,78 @@ type Person struct {
 	Squad    string  `json:"squad"`
 }
 
-func GeneratePairings(config Config, hist *history.History, weeks int) error {
-	date := time.Now()
+type Pairings struct {
+	data [][2]ID
+}
 
+// NewPairingsFromFile constructs and returns Pairings.
+func NewPairingsFromFile(path string) (Pairings, error) {
+	file, err := os.Open(path)
+	if err != nil {
+		return Pairings{}, fmt.Errorf("error opening file %s: %w", path, err)
+	}
+
+	data := new([][2]ID)
+	err = json.NewDecoder(file).Decode(data)
+	if err != nil {
+		return Pairings{}, fmt.Errorf("error decoding Pairings: %w", err)
+	}
+
+	return Pairings{data: *data}, nil
+}
+
+// Export writes the pairings to the given writer, typically a file.
+func (p *Pairings) Export(writer io.Writer) error {
+	data, err := json.Marshal(p.data)
+	if err != nil {
+		return fmt.Errorf("error marshalling Pairings: %w", err)
+	}
+
+	if _, err = writer.Write(data); err != nil {
+		return fmt.Errorf("error writing Pairings: %w", err)
+	}
+	return nil
+}
+
+func (p *Pairings) Add(id1, id2 ID) {
+	p.data = append(p.data, [2]ID{id1, id2})
+}
+
+func (p *Pairings) All() iter.Seq2[ID, ID] {
+	return func(yield func(ID, ID) bool) {
+		for _, pair := range p.data {
+			if !yield(pair[0], pair[1]) {
+				return
+			}
+		}
+	}
+}
+
+func GeneratePairings(config Config, hist *history.History, weeks int) ([]Pairings, error) {
+	date := time.Now()
+	var weeklyPairings []Pairings
 	idToValidPairings := determineValidPairings(config)
 
 	for i := range weeks {
 		fmt.Printf("Week %d: %s\n", i, date.Format(time.DateOnly))
 		pairings := pairPeople(config, idToValidPairings, *hist, date)
-		fmt.Printf("\tPairings: %d\n", len(pairings))
+		fmt.Printf("\tPairings: %d\n", len(pairings.data))
 
-		for _, pairing := range pairings {
+		for id1, id2 := range pairings.All() {
 			hist.AddMeeting(
-				history.ID(pairing[0]),
-				history.ID(pairing[1]),
+				history.ID(id1),
+				history.ID(id2),
 				date,
 			)
 
-			fmt.Printf("\tPairing: %s and %s\n", pairing[0], pairing[1])
+			fmt.Printf("\tPairing: %s and %s\n", id1, id2)
 		}
 
+		weeklyPairings = append(weeklyPairings, pairings)
 		date = date.AddDate(0, 0, 7)
 	}
 
-	return nil
+	return weeklyPairings, nil
 }
 
 // determineValidPairings parses the people and their deny lists to determine the valid pairings for each person.
@@ -128,8 +178,8 @@ func determineValidPairings(config Config) map[ID][]ID {
 
 // pairPeople based on their valid pairings.
 // Preference is given to unmet people and then by longest time since last meeting.
-func pairPeople(conf Config, idToValidPairings map[ID][]ID, hist history.History, date time.Time) [][2]ID {
-	var pairings [][2]ID
+func pairPeople(conf Config, idToValidPairings map[ID][]ID, hist history.History, date time.Time) Pairings {
+	pairings := Pairings{}
 	alreadyPaired := getIneligiblePeople(conf, idToValidPairings, date)
 
 	for id, validPairings := range idToValidPairings {
@@ -142,7 +192,7 @@ func pairPeople(conf Config, idToValidPairings map[ID][]ID, hist history.History
 			if slices.Contains(alreadyPaired, pair) {
 				continue
 			}
-			pairings = append(pairings, [2]ID{id, pair})
+			pairings.Add(id, pair)
 			alreadyPaired = append(alreadyPaired, id)
 			alreadyPaired = append(alreadyPaired, pair)
 			break
