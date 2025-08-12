@@ -10,7 +10,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/AleksaSvitlica/yapper/internal/history"
+	"github.com/AleksaSvitlica/yapper/history"
 )
 
 const validConfigName = "validConfig.json"

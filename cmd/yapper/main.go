@@ -7,7 +7,7 @@ import (
 	"os"
 
 	"github.com/AleksaSvitlica/yapper"
-	"github.com/AleksaSvitlica/yapper/internal/history"
+	"github.com/AleksaSvitlica/yapper/history"
 )
 
 const (

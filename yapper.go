@@ -10,7 +10,7 @@ import (
 	"slices"
 	"time"
 
-	"github.com/AleksaSvitlica/yapper/internal/history"
+	"github.com/AleksaSvitlica/yapper/history"
 )
 
 type Cadence string
