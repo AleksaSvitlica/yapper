@@ -42,10 +42,17 @@ func execute(args []string) int {
 		return exitCodeError
 	}
 
-	_, err = yapper.GeneratePairings(config, &hist, *weeksOfPairings)
+	weeklyPairings, err := yapper.GeneratePairings(config, &hist, *weeksOfPairings)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Error generating pairings: %v\n", err)
 		return exitCodeError
+	}
+
+	for i, pairings := range weeklyPairings {
+		fmt.Printf("Week %d:\n", i)
+		for id1, id2 := range pairings.All() {
+			fmt.Printf("\tPairing: %s and %s\n", id1, id2)
+		}
 	}
 
 	if err := writeHistoryToFile(hist, *pathToHistory); err != nil {

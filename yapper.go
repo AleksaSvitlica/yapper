@@ -132,10 +132,8 @@ func GeneratePairings(config Config, hist *history.History, weeks int) ([]Pairin
 	var weeklyPairings []Pairings
 	idToValidPairings := determineValidPairings(config)
 
-	for i := range weeks {
-		fmt.Printf("Week %d: %s\n", i, date.Format(time.DateOnly))
+	for range weeks {
 		pairings := pairPeople(config, idToValidPairings, *hist, date)
-		fmt.Printf("\tPairings: %d\n", len(pairings.data))
 
 		for id1, id2 := range pairings.All() {
 			hist.AddMeeting(
@@ -143,8 +141,6 @@ func GeneratePairings(config Config, hist *history.History, weeks int) ([]Pairin
 				history.ID(id2),
 				date,
 			)
-
-			fmt.Printf("\tPairing: %s and %s\n", id1, id2)
 		}
 
 		weeklyPairings = append(weeklyPairings, pairings)
