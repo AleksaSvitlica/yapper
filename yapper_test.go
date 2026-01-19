@@ -111,6 +111,29 @@ func TestPairPeopleDoesNotCreateInvalidPairs(t *testing.T) {
 	}
 }
 
+func TestPairPeopleDoesNotPairWithRemovedPeople(t *testing.T) {
+	weeksOfPairings := 30
+	config := getConfigFromFile(t, validConfigName)
+	validPairs := getValidPairsForConfig()
+	hist := history.History{}
+	date := time.Date(2025, time.August, 1, 0, 0, 0, 0, time.UTC)
+
+	removed := ID("removed-from-config")
+	for _, person := range config.People{
+		hist.AddMeeting(history.ID(removed), history.ID(person.ID), date.AddDate(0, 0, -7))
+	}
+
+	for range weeksOfPairings {
+		pairings := pairPeople(config, validPairs, hist, date)
+
+		for id1, id2 := range pairings.All() {
+			if id1 == removed || id2 == removed {
+				t.Fatalf("%s should not be paired", removed)
+			}
+		}
+	}
+}
+
 func TestAverageTimeSinceMeetingIncreasesOrIsGreaterThanMinimum(t *testing.T) {
 	minimumAvgDaysSinceMeeting := 14.0
 	weeksOfPairings := 30

@@ -210,7 +210,9 @@ func getOrderedPossiblePairings(id ID, validPairings []ID, hist history.History)
 
 	possiblePairingsOrdered := unmetPeople
 	for _, prevID := range previousMeetingsOldestFirst {
-		possiblePairingsOrdered = append(possiblePairingsOrdered, ID(prevID))
+		if slices.Contains(validPairings, ID(prevID)) {
+			possiblePairingsOrdered = append(possiblePairingsOrdered, ID(prevID))
+		}
 	}
 
 	return possiblePairingsOrdered
