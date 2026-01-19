@@ -180,8 +180,7 @@ func TestPeopleHaveMetAllEligiblePairs(t *testing.T) {
 	hist := history.History{}
 	validPairs := getValidPairsForConfig()
 
-	maxCadenceWeeks := 2
-	weeksOfPairings := len(validPairs) * maxCadenceWeeks * 2
+	weeksOfPairings := 200
 
 	for i := range weeksOfPairings {
 		t.Logf("Week %d", i)
